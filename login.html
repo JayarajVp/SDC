@@ -6,37 +6,52 @@
   <title>Login</title>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="firebase.js"></script>
+  <style>
+    /* Add your styles here */
+  </style>
 </head>
 <body>
-  <div class="login-container">
-    <h2>Login</h2>
-    <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
-    <button id="login-btn">Login</button>
-    <p>Don't have an account? <a href="#" id="signup-link">Sign up</a></p>
-  </div>
+
+  <h2>Login</h2>
+  <input type="text" id="identifier" placeholder="Username or Email" required />
+  <input type="password" id="password" placeholder="Password" required />
+  <button id="login-btn">Login</button>
 
   <script type="module">
     import { auth } from './firebase.js';
-    import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { get, ref } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    document.getElementById('login-btn').addEventListener('click', () => {
-      const email = document.getElementById('email').value;
+    document.getElementById('login-btn').addEventListener('click', async () => {
+      const identifier = document.getElementById('identifier').value;
       const password = document.getElementById('password').value;
 
-      signInWithEmailAndPassword(auth, email, password)
-        .then(() => window.location = 'interface.html')
-        .catch(err => alert(err.message));
-    });
+      try {
+        let user;
+        // Check if identifier is an email
+        if (identifier.includes('@')) {
+          user = await signInWithEmailAndPassword(auth, identifier, password);
+        } else {
+          // Lookup by username in the database
+          const userSnapshot = await get(ref(db, 'users'));
+          userSnapshot.forEach((childSnapshot) => {
+            const userData = childSnapshot.val();
+            if (userData.username === identifier) {
+              user = { uid: childSnapshot.key };
+            }
+          });
+          if (!user) {
+            throw new Error('User not found');
+          }
+        }
 
-    document.getElementById('signup-link').addEventListener('click', () => {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-
-      createUserWithEmailAndPassword(auth, email, password)
-        .then(() => alert('Account created!'))
-        .catch(err => alert(err.message));
+        alert('Login successful!');
+        // Redirect to interface page, passing user ID or storing in localStorage
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
     });
   </script>
+
 </body>
 </html>
