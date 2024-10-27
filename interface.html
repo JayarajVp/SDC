@@ -9,64 +9,101 @@
 </head>
 <body>
   <div class="container">
-    <h1>Image Feed</h1>
+    <h1>Upload and View Images</h1>
 
-    <input type="file" id="upload-image" />
-    <button id="upload-btn">Upload</button>
+    <input type="file" id="upload-images" multiple />
+    <button id="upload-btn">Upload Images</button>
 
     <div id="feed"></div>
   </div>
 
   <script type="module">
     import { db, storage } from './firebase.js';
-    import { ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { ref as dbRef, push, onValue, update, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
     import { ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
+    const uploadBtn = document.getElementById('upload-btn');
+    const uploadImages = document.getElementById('upload-images');
     const feed = document.getElementById('feed');
-    const uploadImage = document.getElementById('upload-image');
 
-    document.getElementById('upload-btn').addEventListener('click', () => {
-      const file = uploadImage.files[0];
-      const imageRef = storageRef(storage, 'images/' + file.name);
+    // Function to upload multiple images
+    uploadBtn.addEventListener('click', async () => {
+      const files = uploadImages.files;
+      if (files.length === 0) {
+        alert('Please select at least one image to upload.');
+        return;
+      }
 
-      uploadBytes(imageRef, file).then(() => {
-        getDownloadURL(imageRef).then(url => {
-          const postId = push(ref(db, 'posts')).key;
-          set(ref(db, 'posts/' + postId), { imageUrl: url, likes: 0, comments: [] });
-        });
-      });
+      for (let file of files) {
+        const imageRef = storageRef(storage, 'images/' + file.name);
+        try {
+          // Upload the file to Firebase Storage
+          await uploadBytes(imageRef, file);
+
+          // Get the download URL of the uploaded image
+          const url = await getDownloadURL(imageRef);
+
+          // Store the image URL and metadata in Firebase Realtime Database
+          const postId = push(dbRef(db, 'posts')).key;
+          set(dbRef(db, 'posts/' + postId), {
+            imageUrl: url,
+            likes: 0,
+            comments: []
+          });
+        } catch (error) {
+          alert('Error uploading image: ' + error.message);
+        }
+      }
+      alert('Images uploaded successfully!');
     });
 
-    onValue(ref(db, 'posts'), snapshot => {
-      feed.innerHTML = '';
-      snapshot.forEach(postSnapshot => {
-        const post = postSnapshot.val();
-        const postElement = document.createElement('div');
-        postElement.classList.add('post');
-        postElement.innerHTML = `
-          <img src="${post.imageUrl}" alt="Image" />
-          <button class="like-btn">❤️ ${post.likes}</button>
-          <div class="comments"></div>
-          <input type="text" class="comment-input" placeholder="Add a comment" />
-          <button class="comment-btn">Post</button>
-        `;
+    // Function to render the image feed
+    function renderFeed() {
+      onValue(dbRef(db, 'posts'), (snapshot) => {
+        feed.innerHTML = ''; // Clear existing feed
+        snapshot.forEach((postSnapshot) => {
+          const post = postSnapshot.val();
+          const postElement = document.createElement('div');
+          postElement.classList.add('post');
+          postElement.innerHTML = `
+            <img src="${post.imageUrl}" alt="Uploaded Image" />
+            <button class="like-btn">❤️ ${post.likes}</button>
+            <div class="comments"></div>
+            <input type="text" class="comment-input" placeholder="Add a comment" />
+            <button class="comment-btn">Post</button>
+          `;
 
-        postElement.querySelector('.like-btn').addEventListener('click', () => {
-          const newLikes = post.likes + 1;
-          update(ref(db, 'posts/' + postSnapshot.key), { likes: newLikes });
+          // Handle like button click
+          postElement.querySelector('.like-btn').addEventListener('click', () => {
+            const newLikes = post.likes + 1;
+            update(dbRef(db, 'posts/' + postSnapshot.key), { likes: newLikes });
+          });
+
+          // Handle comment posting
+          postElement.querySelector('.comment-btn').addEventListener('click', () => {
+            const comment = postElement.querySelector('.comment-input').value;
+            if (comment) {
+              const newComments = [...(post.comments || []), comment];
+              update(dbRef(db, 'posts/' + postSnapshot.key), { comments: newComments });
+              postElement.querySelector('.comment-input').value = ''; // Clear input
+            }
+          });
+
+          // Render comments
+          const commentsDiv = postElement.querySelector('.comments');
+          (post.comments || []).forEach(comment => {
+            const commentElement = document.createElement('p');
+            commentElement.textContent = comment;
+            commentsDiv.appendChild(commentElement);
+          });
+
+          feed.appendChild(postElement);
         });
-
-        postElement.querySelector('.comment-btn').addEventListener('click', () => {
-          const comment = postElement.querySelector('.comment-input').value;
-          if (comment) {
-            const newComments = [...(post.comments || []), comment];
-            update(ref(db, 'posts/' + postSnapshot.key), { comments: newComments });
-          }
-        });
-
-        feed.appendChild(postElement);
       });
-    });
+    }
+
+    // Call renderFeed to display posts when the page loads
+    renderFeed();
   </script>
 </body>
 </html>
