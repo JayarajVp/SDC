@@ -12,9 +12,8 @@
   <div id="imageContainer"></div>
 
   <script type="module">
-    // Firebase imports
     import { 
-      getFirestore, collection, addDoc, getDocs, orderBy, query 
+      getFirestore, collection, addDoc, getDocs, query, orderBy 
     } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
     import { 
@@ -22,7 +21,7 @@
     } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
     import { app } from "./firebaseConfig.js";
-    
+
     const db = getFirestore(app);
     const storage = getStorage(app);
 
@@ -30,7 +29,7 @@
     const imageInput = document.getElementById('imageInput');
     const imageContainer = document.getElementById('imageContainer');
 
-    // Trigger file input when upload button is clicked
+    // Upload button click triggers file input
     uploadButton.addEventListener('click', () => imageInput.click());
 
     // Handle image upload
@@ -43,14 +42,14 @@
         await uploadBytes(storageRef, file);
         const imageUrl = await getDownloadURL(storageRef);
 
-        // Add the image URL to Firestore
+        // Store image URL in Firestore
         await addDoc(collection(db, 'images'), {
           url: imageUrl,
           timestamp: new Date()
         });
 
         alert('Image uploaded successfully!');
-        displayImages();
+        displayImages(); // Refresh images
       } catch (error) {
         console.error('Error uploading image:', error);
         alert('Failed to upload image.');
@@ -62,7 +61,7 @@
       const q = query(collection(db, 'images'), orderBy('timestamp', 'desc'));
       const querySnapshot = await getDocs(q);
 
-      imageContainer.innerHTML = ''; // Clear container
+      imageContainer.innerHTML = ''; // Clear previous images
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
@@ -73,23 +72,7 @@
         img.src = data.url;
         img.alt = 'Uploaded Image';
 
-        const likeButton = document.createElement('button');
-        likeButton.innerText = 'Like';
-        likeButton.onclick = () => alert('Liked!'); // Placeholder for like functionality
-
-        const commentInput = document.createElement('input');
-        commentInput.type = 'text';
-        commentInput.placeholder = 'Add a comment...';
-
-        const commentButton = document.createElement('button');
-        commentButton.innerText = 'Comment';
-        commentButton.onclick = () => alert(`Comment: ${commentInput.value}`); // Placeholder for comments
-
         imageDiv.appendChild(img);
-        imageDiv.appendChild(likeButton);
-        imageDiv.appendChild(commentInput);
-        imageDiv.appendChild(commentButton);
-
         imageContainer.appendChild(imageDiv);
       });
     }
