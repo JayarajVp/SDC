@@ -3,234 +3,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Image Feed</title>
+  <title>Interface</title>
   <link rel="stylesheet" href="styles.css">
-  <script type="module" src="firebase.js"></script>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background-color: #f0f0f0;
-    }
-
-    .upload-container {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-    }
-
-    input[type="file"] {
-      display: none;
-    }
-
-    .upload-label {
-      background-color: #007bff;
-      color: white;
-      padding: 10px 20px;
-      cursor: pointer;
-      border: none;
-      border-radius: 5px;
-    }
-
-    #feed {
-      margin-top: 80px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 80%;
-      max-width: 600px;
-    }
-
-    .post {
-      background-color: white;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-      width: 100%;
-      padding: 15px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .post img {
-      max-width: 100%;
-      border-radius: 10px;
-      margin-bottom: 10px;
-    }
-
-    .like-btn {
-      background-color: #ff4d4d;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-bottom: 10px;
-    }
-
-    .comments {
-      width: 100%;
-      text-align: left;
-      margin-top: 10px;
-    }
-
-    .comment-input {
-      width: 100%;
-      margin-top: 10px;
-      padding: 5px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-    }
-
-    .comment-btn {
-      margin-top: 5px;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .no-images {
-      font-size: 18px;
-      color: #555;
-      margin-top: 20px;
-    }
-  </style>
 </head>
 <body>
-
-  <div class="upload-container">
-    <label class="upload-label" for="upload-images">Upload Images</label>
-    <input type="file" id="upload-images" multiple />
-    <button id="upload-btn">Upload</button>
-  </div>
-
-  <div id="feed"></div>
+  <button id="uploadButton">Upload Image</button>
+  <input type="file" id="imageInput" style="display:none;"><br>
+  <div id="imageContainer"></div>
 
   <script type="module">
-    import { db, storage, auth } from './firebase.js';
-    import { ref as dbRef, push, onValue, update } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
-    import { ref as storageRef, getDownloadURL, uploadBytes } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+    import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+    import { collection, addDoc, query, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { app, storage, db } from "./firebaseConfig.js";
 
-    const uploadBtn = document.getElementById('upload-btn');
-    const uploadImages = document.getElementById('upload-images');
-    const feed = document.getElementById('feed');
+    const uploadButton = document.getElementById('uploadButton');
+    const imageInput = document.getElementById('imageInput');
+    const imageContainer = document.getElementById('imageContainer');
 
-    // Upload multiple images to Firebase Storage
-    uploadBtn.addEventListener('click', async () => {
-      const files = uploadImages.files;
-      if (files.length === 0) {
-        alert('Please select at least one image to upload.');
-        return;
-      }
+    uploadButton.addEventListener('click', () => imageInput.click());
 
-      for (let file of files) {
-        const imageRef = storageRef(storage, 'images/' + file.name);
-        try {
-          await uploadBytes(imageRef, file);
-          const url = await getDownloadURL(imageRef);
+    imageInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      const storageRef = ref(storage, `images/${file.name}`);
+      await uploadBytes(storageRef, file);
+      const imageUrl = await getDownloadURL(storageRef);
 
-          const postId = push(dbRef(db, 'posts')).key;
-          update(dbRef(db, 'posts/' + postId), {
-            imageUrl: url,
-            likes: 0,
-            comments: [],
-            likedBy: []
-          });
-
-        } catch (error) {
-          alert('Error uploading image: ' + error.message);
-        }
-      }
-      loadImages(); // Reload feed after upload
+      await addDoc(collection(db, 'images'), { url: imageUrl, timestamp: new Date() });
+      displayImages();
     });
 
-    // Load and display all images from Firebase
-    async function loadImages() {
-      onValue(dbRef(db, 'posts'), (snapshot) => {
-        feed.innerHTML = ''; // Clear existing posts
-        let hasImages = false; // Flag to track if there are images
-
-        snapshot.forEach((postSnapshot) => {
-          const post = postSnapshot.val();
-          
-          // Check if imageUrl is valid and not blank
-          if (post && post.imageUrl && post.imageUrl.trim() !== '') {
-            hasImages = true; // Set flag to true when an image is found
-            const postElement = document.createElement('div');
-            postElement.classList.add('post');
-            postElement.innerHTML = `
-              <img src="${post.imageUrl}" alt="Image" />
-              <button class="like-btn">❤️ ${post.likes || 0} Likes</button>
-              <div class="comments"></div>
-              <input type="text" class="comment-input" placeholder="Add a comment" />
-              <button class="comment-btn">Post</button>
-            `;
-
-            // Handle Like button
-            postElement.querySelector('.like-btn').addEventListener('click', () => {
-              if (!auth.currentUser) {
-                alert('Please log in to like this image.');
-                return;
-              }
-              const userId = auth.currentUser.uid; // Get current user's ID
-              const likedBy = post.likedBy || []; // Get current likedBy array
-
-              if (!likedBy.includes(userId)) {
-                likedBy.push(userId); // Add user ID to likedBy array
-                update(dbRef(db, 'posts/' + postSnapshot.key), { 
-                  likes: (post.likes || 0) + 1,
-                  likedBy: likedBy 
-                });
-              } else {
-                alert('You already liked this image!');
-              }
-            });
-
-            // Handle Comment button
-            postElement.querySelector('.comment-btn').addEventListener('click', () => {
-              if (!auth.currentUser) {
-                alert('Please log in to comment on this image.');
-                return;
-              }
-              const commentInput = postElement.querySelector('.comment-input');
-              const comment = commentInput.value;
-              const username = auth.currentUser.displayName || 'Anonymous'; // Get current user's username
-              if (comment) {
-                const newComments = [...(post.comments || []), { username, content: comment }];
-                update(dbRef(db, 'posts/' + postSnapshot.key), { comments: newComments });
-                commentInput.value = ''; // Clear input
-              }
-            });
-
-            // Render comments
-            const commentsDiv = postElement.querySelector('.comments');
-            (post.comments || []).forEach(({ username, content }) => {
-              const commentElement = document.createElement('p');
-              commentElement.textContent = `${username}: ${content}`;
-              commentsDiv.appendChild(commentElement);
-            });
-
-            feed.appendChild(postElement);
-          }
-        });
-
-        // Show message if no images found
-        if (!hasImages) {
-          feed.innerHTML = '<div class="no-images">No images found. Please upload some!</div>';
-        }
+    async function displayImages() {
+      const q = query(collection(db, 'images'), orderBy('timestamp', 'desc'));
+      const querySnapshot = await getDocs(q);
+      imageContainer.innerHTML = '';
+      querySnapshot.forEach((doc) => {
+        const img = document.createElement('img');
+        img.src = doc.data().url;
+        imageContainer.appendChild(img);
       });
     }
 
-    // Load images on page load
-    loadImages();
+    displayImages();
   </script>
-
 </body>
 </html>
