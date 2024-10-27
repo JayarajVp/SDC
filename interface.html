@@ -7,42 +7,100 @@
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="firebase.js"></script>
   <style>
-    /* Simple styles for layout */
     body {
-      font-family: Arial, sans-serif;
       margin: 0;
-      padding: 20px;
-    }
-    .upload-container {
+      font-family: Arial, sans-serif;
       display: flex;
-      justify-content: flex-end; /* Aligns to the top right */
-      margin-bottom: 20px;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f0f0f0;
     }
+
+    .upload-container {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .upload-label {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 20px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+    }
+
+    #feed {
+      margin-top: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 80%;
+      max-width: 600px;
+    }
+
     .post {
-      border: 1px solid #ccc;
-      margin: 10px 0;
-      padding: 10px;
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      width: 100%;
+      padding: 15px;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-    img {
+
+    .post img {
       max-width: 100%;
-      height: auto;
+      border-radius: 10px;
+      margin-bottom: 10px;
     }
+
+    .like-btn {
+      background-color: #ff4d4d;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
     .comments {
       width: 100%;
+      text-align: left;
       margin-top: 10px;
     }
+
     .comment-input {
-      width: 70%;
-      margin-right: 5px;
+      width: 100%;
+      margin-top: 10px;
+      padding: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    .comment-btn {
+      margin-top: 5px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
 
   <div class="upload-container">
+    <label class="upload-label" for="upload-images">Upload Images</label>
     <input type="file" id="upload-images" multiple />
     <button id="upload-btn">Upload</button>
   </div>
@@ -71,7 +129,6 @@
         try {
           await uploadBytes(imageRef, file);
           const url = await getDownloadURL(imageRef);
-
           const postId = push(dbRef(db, 'posts')).key;
           set(dbRef(db, 'posts/' + postId), {
             imageUrl: url,
@@ -79,6 +136,7 @@
             comments: [],
             likedBy: [] // Track users who liked the image
           });
+
         } catch (error) {
           alert('Error uploading image: ' + error.message);
         }
@@ -97,7 +155,7 @@
           postElement.classList.add('post');
           postElement.innerHTML = `
             <img src="${post.imageUrl}" alt="Image" />
-            <button class="like-btn">❤️ ${post.likedBy.length} Likes</button>
+            <button class="like-btn">❤️ ${post.likes} Likes</button>
             <div class="comments"></div>
             <input type="text" class="comment-input" placeholder="Add a comment" />
             <button class="comment-btn">Post</button>
@@ -110,7 +168,10 @@
 
             if (!likedBy.includes(userId)) {
               likedBy.push(userId); // Add user ID to likedBy array
-              update(dbRef(db, 'posts/' + postSnapshot.key), { likedBy: likedBy });
+              update(dbRef(db, 'posts/' + postSnapshot.key), { 
+                likes: post.likes + 1,
+                likedBy: likedBy 
+              });
             } else {
               alert('You already liked this image!');
             }
