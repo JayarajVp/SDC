@@ -46,7 +46,8 @@
         }
 
         alert('Login successful!');
-        // Redirect to interface page, passing user ID or storing in localStorage
+        // Redirect to interface page
+        window.location.href = 'interface.html'; // Add this line for redirection
       } catch (error) {
         alert('Error: ' + error.message);
       }
