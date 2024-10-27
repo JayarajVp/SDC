@@ -5,54 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login</title>
   <link rel="stylesheet" href="styles.css">
-  <script type="module" src="firebase.js"></script>
-  <style>
-    /* Add your styles here */
-  </style>
 </head>
 <body>
-
   <h2>Login</h2>
-  <input type="text" id="identifier" placeholder="Username or Email" required />
-  <input type="password" id="password" placeholder="Password" required />
-  <button id="login-btn">Login</button>
+  <form id="loginForm">
+    <input type="text" id="loginID" placeholder="Username or Email" required><br>
+    <input type="password" id="password" placeholder="Password" required><br>
+    <button type="submit">Login</button>
+  </form>
 
   <script type="module">
-    import { auth } from './firebase.js';
-    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-    import { get, ref } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { app } from "./firebaseConfig.js";
 
-    document.getElementById('login-btn').addEventListener('click', async () => {
-      const identifier = document.getElementById('identifier').value;
+    const auth = getAuth(app);
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const loginID = document.getElementById('loginID').value;
       const password = document.getElementById('password').value;
 
       try {
-        let user;
-        // Check if identifier is an email
-        if (identifier.includes('@')) {
-          user = await signInWithEmailAndPassword(auth, identifier, password);
-        } else {
-          // Lookup by username in the database
-          const userSnapshot = await get(ref(db, 'users'));
-          userSnapshot.forEach((childSnapshot) => {
-            const userData = childSnapshot.val();
-            if (userData.username === identifier) {
-              user = { uid: childSnapshot.key };
-            }
-          });
-          if (!user) {
-            throw new Error('User not found');
-          }
-        }
-
+        await signInWithEmailAndPassword(auth, loginID, password);
         alert('Login successful!');
-        // Redirect to interface page
-        window.location.href = 'interface.html'; // Add this line for redirection
+        window.location.href = 'interface.html';
       } catch (error) {
-        alert('Error: ' + error.message);
+        alert('Login failed: ' + error.message);
       }
     });
   </script>
-
 </body>
 </html>
