@@ -7,94 +7,7 @@
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="firebase.js"></script>
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background-color: #f0f0f0;
-    }
-
-    .upload-container {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-    }
-
-    input[type="file"] {
-      display: none;
-    }
-
-    .upload-label {
-      background-color: #007bff;
-      color: white;
-      padding: 10px 20px;
-      cursor: pointer;
-      border: none;
-      border-radius: 5px;
-    }
-
-    #feed {
-      margin-top: 80px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 80%;
-      max-width: 600px;
-    }
-
-    .post {
-      background-color: white;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-      width: 100%;
-      padding: 15px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .post img {
-      max-width: 100%;
-      border-radius: 10px;
-      margin-bottom: 10px;
-    }
-
-    .like-btn {
-      background-color: #ff4d4d;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-bottom: 10px;
-    }
-
-    .comments {
-      width: 100%;
-      text-align: left;
-      margin-top: 10px;
-    }
-
-    .comment-input {
-      width: 100%;
-      margin-top: 10px;
-      padding: 5px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-    }
-
-    .comment-btn {
-      margin-top: 5px;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
+    /* Add your styles here */
   </style>
 </head>
 <body>
@@ -108,7 +21,7 @@
   <div id="feed"></div>
 
   <script type="module">
-    import { db, storage } from './firebase.js';
+    import { db, storage, auth } from './firebase.js';
     import { ref as dbRef, push, onValue, update, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
     import { ref as storageRef, listAll, getDownloadURL, uploadBytes } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
@@ -134,9 +47,9 @@
           set(dbRef(db, 'posts/' + postId), {
             imageUrl: url,
             likes: 0,
-            comments: []
+            comments: [],
+            likedBy: [] // Track users who liked the image
           });
-
         } catch (error) {
           alert('Error uploading image: ' + error.message);
         }
@@ -155,7 +68,7 @@
           postElement.classList.add('post');
           postElement.innerHTML = `
             <img src="${post.imageUrl}" alt="Image" />
-            <button class="like-btn">❤️ ${post.likes}</button>
+            <button class="like-btn">❤️ ${post.likedBy.length}</button>
             <div class="comments"></div>
             <input type="text" class="comment-input" placeholder="Add a comment" />
             <button class="comment-btn">Post</button>
@@ -163,16 +76,20 @@
 
           // Handle Like button
           postElement.querySelector('.like-btn').addEventListener('click', () => {
-            const newLikes = post.likes + 1;
-            update(dbRef(db, 'posts/' + postSnapshot.key), { likes: newLikes });
+            const userId = auth.currentUser.uid; // Get current user's ID
+            if (!post.likedBy.includes(userId)) {
+              const newLikedBy = [...post.likedBy, userId]; // Add user ID to likedBy array
+              update(dbRef(db, 'posts/' + postSnapshot.key), { likedBy: newLikedBy });
+            }
           });
 
           // Handle Comment button
           postElement.querySelector('.comment-btn').addEventListener('click', () => {
             const commentInput = postElement.querySelector('.comment-input');
             const comment = commentInput.value;
+            const username = auth.currentUser.displayName; // Get current user's username
             if (comment) {
-              const newComments = [...(post.comments || []), comment];
+              const newComments = [...(post.comments || []), { username, content: comment }];
               update(dbRef(db, 'posts/' + postSnapshot.key), { comments: newComments });
               commentInput.value = ''; // Clear input
             }
@@ -180,9 +97,9 @@
 
           // Render comments
           const commentsDiv = postElement.querySelector('.comments');
-          (post.comments || []).forEach(comment => {
+          (post.comments || []).forEach(({ username, content }) => {
             const commentElement = document.createElement('p');
-            commentElement.textContent = comment;
+            commentElement.textContent = `${username}: ${content}`;
             commentsDiv.appendChild(commentElement);
           });
 
