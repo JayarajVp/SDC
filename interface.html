@@ -7,7 +7,33 @@
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="firebase.js"></script>
   <style>
-    /* Add your styles here */
+    /* Simple styles for layout */
+    body {
+      font-family: Arial, sans-serif;
+    }
+    .upload-container {
+      margin: 20px;
+    }
+    .post {
+      border: 1px solid #ccc;
+      margin: 10px 0;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+    .comments {
+      width: 100%;
+      margin-top: 10px;
+    }
+    .comment-input {
+      width: 80%;
+      margin-right: 5px;
+    }
   </style>
 </head>
 <body>
@@ -23,7 +49,7 @@
   <script type="module">
     import { db, storage, auth } from './firebase.js';
     import { ref as dbRef, push, onValue, update, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
-    import { ref as storageRef, listAll, getDownloadURL, uploadBytes } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+    import { ref as storageRef, getDownloadURL, uploadBytes } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
     const uploadBtn = document.getElementById('upload-btn');
     const uploadImages = document.getElementById('upload-images');
@@ -77,9 +103,13 @@
           // Handle Like button
           postElement.querySelector('.like-btn').addEventListener('click', () => {
             const userId = auth.currentUser.uid; // Get current user's ID
-            if (!post.likedBy.includes(userId)) {
-              const newLikedBy = [...post.likedBy, userId]; // Add user ID to likedBy array
-              update(dbRef(db, 'posts/' + postSnapshot.key), { likedBy: newLikedBy });
+            const likedBy = post.likedBy || []; // Get current likedBy array
+
+            if (!likedBy.includes(userId)) {
+              likedBy.push(userId); // Add user ID to likedBy array
+              update(dbRef(db, 'posts/' + postSnapshot.key), { likedBy: likedBy });
+            } else {
+              alert('You already liked this image!');
             }
           });
 
@@ -87,7 +117,7 @@
           postElement.querySelector('.comment-btn').addEventListener('click', () => {
             const commentInput = postElement.querySelector('.comment-input');
             const comment = commentInput.value;
-            const username = auth.currentUser.displayName; // Get current user's username
+            const username = auth.currentUser.displayName || 'Anonymous'; // Get current user's username
             if (comment) {
               const newComments = [...(post.comments || []), { username, content: comment }];
               update(dbRef(db, 'posts/' + postSnapshot.key), { comments: newComments });
