@@ -3,49 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registration</title>
+  <title>Register</title>
   <link rel="stylesheet" href="styles.css">
-  <script type="module" src="firebase.js"></script>
-  <style>
-    /* Add your styles here */
-  </style>
 </head>
 <body>
-
-  <h2>Create Account</h2>
-  <input type="text" id="username" placeholder="Username" required />
-  <input type="email" id="email" placeholder="Email" required />
-  <input type="password" id="password" placeholder="Password" required />
-  <button id="register-btn">Register</button>
+  <h2>Register</h2>
+  <form id="registerForm">
+    <input type="text" id="username" placeholder="Username" required><br>
+    <input type="email" id="email" placeholder="Email" required><br>
+    <input type="password" id="password" placeholder="Password" required><br>
+    <button type="submit">Register</button>
+  </form>
 
   <script type="module">
-    import { auth } from './firebase.js';
-    import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-    import { set, ref } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
-    import { db } from './firebase.js';
+    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { setDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { app, db } from "./firebaseConfig.js";
 
-    document.getElementById('register-btn').addEventListener('click', async () => {
+    const auth = getAuth(app);
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
       const username = document.getElementById('username').value;
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
 
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const userId = userCredential.user.uid;
-
-        // Save user info to database
-        await set(ref(db, 'users/' + userId), {
-          username: username,
-          email: email
-        });
-
+        const user = userCredential.user;
+        await setDoc(doc(db, "users", user.uid), { username, email });
         alert('Registration successful!');
-        // Redirect to login or interface page
+        window.location.href = 'login.html';
       } catch (error) {
-        alert('Error: ' + error.message);
+        alert(error.message);
       }
     });
   </script>
-
 </body>
 </html>
