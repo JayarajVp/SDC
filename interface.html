@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Feed</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="firebase.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Image Feed</h1>
+
+    <input type="file" id="upload-image" />
+    <button id="upload-btn">Upload</button>
+
+    <div id="feed"></div>
+  </div>
+
+  <script type="module">
+    import { db, storage } from './firebase.js';
+    import { ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+
+    const feed = document.getElementById('feed');
+    const uploadImage = document.getElementById('upload-image');
+
+    document.getElementById('upload-btn').addEventListener('click', () => {
+      const file = uploadImage.files[0];
+      const imageRef = storageRef(storage, 'images/' + file.name);
+
+      uploadBytes(imageRef, file).then(() => {
+        getDownloadURL(imageRef).then(url => {
+          const postId = push(ref(db, 'posts')).key;
+          set(ref(db, 'posts/' + postId), { imageUrl: url, likes: 0, comments: [] });
+        });
+      });
+    });
+
+    onValue(ref(db, 'posts'), snapshot => {
+      feed.innerHTML = '';
+      snapshot.forEach(postSnapshot => {
+        const post = postSnapshot.val();
+        const postElement = document.createElement('div');
+        postElement.classList.add('post');
+        postElement.innerHTML = `
+          <img src="${post.imageUrl}" alt="Image" />
+          <button class="like-btn">❤️ ${post.likes}</button>
+          <div class="comments"></div>
+          <input type="text" class="comment-input" placeholder="Add a comment" />
+          <button class="comment-btn">Post</button>
+        `;
+
+        postElement.querySelector('.like-btn').addEventListener('click', () => {
+          const newLikes = post.likes + 1;
+          update(ref(db, 'posts/' + postSnapshot.key), { likes: newLikes });
+        });
+
+        postElement.querySelector('.comment-btn').addEventListener('click', () => {
+          const comment = postElement.querySelector('.comment-input').value;
+          if (comment) {
+            const newComments = [...(post.comments || []), comment];
+            update(ref(db, 'posts/' + postSnapshot.key), { comments: newComments });
+          }
+        });
+
+        feed.appendChild(postElement);
+      });
+    });
+  </script>
+</body>
+</html>
