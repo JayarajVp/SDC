@@ -6,27 +6,89 @@
   <title>Image Feed</title>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="firebase.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+      background-color: #f0f0f0;
+    }
+
+    /* Upload button on the top left */
+    .upload-container {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+    }
+
+    /* File input and upload button */
+    input[type="file"] {
+      display: none;
+    }
+
+    .upload-label {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 20px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+    }
+
+    /* Image feed in the center */
+    #feed {
+      margin-top: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 80%;
+      max-width: 600px;
+    }
+
+    .post {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      width: 100%;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .post img {
+      max-width: 100%;
+      border-radius: 10px;
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Upload and View Images</h1>
 
+  <!-- Upload Button (Top-Left) -->
+  <div class="upload-container">
+    <label class="upload-label" for="upload-images">Upload Images</label>
     <input type="file" id="upload-images" multiple />
-    <button id="upload-btn">Upload Images</button>
-
-    <div id="feed"></div>
+    <button id="upload-btn">Upload</button>
   </div>
+
+  <!-- Image Feed in the Center -->
+  <div id="feed"></div>
 
   <script type="module">
     import { db, storage } from './firebase.js';
     import { ref as dbRef, push, onValue, update, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
-    import { ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+    import { ref as storageRef, listAll, getDownloadURL, uploadBytes } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
     const uploadBtn = document.getElementById('upload-btn');
     const uploadImages = document.getElementById('upload-images');
     const feed = document.getElementById('feed');
 
-    // Function to upload multiple images
+    // Upload multiple images to Firebase Storage
     uploadBtn.addEventListener('click', async () => {
       const files = uploadImages.files;
       if (files.length === 0) {
@@ -37,73 +99,37 @@
       for (let file of files) {
         const imageRef = storageRef(storage, 'images/' + file.name);
         try {
-          // Upload the file to Firebase Storage
           await uploadBytes(imageRef, file);
-
-          // Get the download URL of the uploaded image
-          const url = await getDownloadURL(imageRef);
-
-          // Store the image URL and metadata in Firebase Realtime Database
-          const postId = push(dbRef(db, 'posts')).key;
-          set(dbRef(db, 'posts/' + postId), {
-            imageUrl: url,
-            likes: 0,
-            comments: []
-          });
+          alert('Images uploaded successfully!');
         } catch (error) {
           alert('Error uploading image: ' + error.message);
         }
       }
-      alert('Images uploaded successfully!');
+      loadImages();  // Reload the feed after uploading
     });
 
-    // Function to render the image feed
-    function renderFeed() {
-      onValue(dbRef(db, 'posts'), (snapshot) => {
-        feed.innerHTML = ''; // Clear existing feed
-        snapshot.forEach((postSnapshot) => {
-          const post = postSnapshot.val();
+    // Function to load and display all images from Firebase Storage
+    async function loadImages() {
+      const imagesRef = storageRef(storage, 'images/');
+      try {
+        const result = await listAll(imagesRef);
+        feed.innerHTML = '';  // Clear existing feed
+
+        for (let item of result.items) {
+          const url = await getDownloadURL(item);
           const postElement = document.createElement('div');
           postElement.classList.add('post');
-          postElement.innerHTML = `
-            <img src="${post.imageUrl}" alt="Uploaded Image" />
-            <button class="like-btn">❤️ ${post.likes}</button>
-            <div class="comments"></div>
-            <input type="text" class="comment-input" placeholder="Add a comment" />
-            <button class="comment-btn">Post</button>
-          `;
-
-          // Handle like button click
-          postElement.querySelector('.like-btn').addEventListener('click', () => {
-            const newLikes = post.likes + 1;
-            update(dbRef(db, 'posts/' + postSnapshot.key), { likes: newLikes });
-          });
-
-          // Handle comment posting
-          postElement.querySelector('.comment-btn').addEventListener('click', () => {
-            const comment = postElement.querySelector('.comment-input').value;
-            if (comment) {
-              const newComments = [...(post.comments || []), comment];
-              update(dbRef(db, 'posts/' + postSnapshot.key), { comments: newComments });
-              postElement.querySelector('.comment-input').value = ''; // Clear input
-            }
-          });
-
-          // Render comments
-          const commentsDiv = postElement.querySelector('.comments');
-          (post.comments || []).forEach(comment => {
-            const commentElement = document.createElement('p');
-            commentElement.textContent = comment;
-            commentsDiv.appendChild(commentElement);
-          });
-
+          postElement.innerHTML = `<img src="${url}" alt="Image" />`;
           feed.appendChild(postElement);
-        });
-      });
+        }
+      } catch (error) {
+        alert('Error loading images: ' + error.message);
+      }
     }
 
-    // Call renderFeed to display posts when the page loads
-    renderFeed();
+    // Load images when the page loads
+    loadImages();
   </script>
+
 </body>
 </html>
