@@ -8,41 +8,93 @@
 </head>
 <body>
   <button id="uploadButton">Upload Image</button>
-  <input type="file" id="imageInput" style="display:none;"><br>
+  <input type="file" id="imageInput" style="display: none;"><br>
   <div id="imageContainer"></div>
 
   <script type="module">
-    import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
-    import { collection, addDoc, query, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-    import { app, storage, db } from "./firebaseConfig.js";
+    // Firebase imports
+    import { 
+      getFirestore, collection, addDoc, getDocs, orderBy, query 
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    import { 
+      getStorage, ref, uploadBytes, getDownloadURL 
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+
+    import { app } from "./firebaseConfig.js";
+    
+    const db = getFirestore(app);
+    const storage = getStorage(app);
 
     const uploadButton = document.getElementById('uploadButton');
     const imageInput = document.getElementById('imageInput');
     const imageContainer = document.getElementById('imageContainer');
 
+    // Trigger file input when upload button is clicked
     uploadButton.addEventListener('click', () => imageInput.click());
 
+    // Handle image upload
     imageInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
-      const storageRef = ref(storage, `images/${file.name}`);
-      await uploadBytes(storageRef, file);
-      const imageUrl = await getDownloadURL(storageRef);
+      if (!file) return;
 
-      await addDoc(collection(db, 'images'), { url: imageUrl, timestamp: new Date() });
-      displayImages();
+      try {
+        const storageRef = ref(storage, `images/${file.name}`);
+        await uploadBytes(storageRef, file);
+        const imageUrl = await getDownloadURL(storageRef);
+
+        // Add the image URL to Firestore
+        await addDoc(collection(db, 'images'), {
+          url: imageUrl,
+          timestamp: new Date()
+        });
+
+        alert('Image uploaded successfully!');
+        displayImages();
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('Failed to upload image.');
+      }
     });
 
+    // Display images from Firestore
     async function displayImages() {
       const q = query(collection(db, 'images'), orderBy('timestamp', 'desc'));
       const querySnapshot = await getDocs(q);
-      imageContainer.innerHTML = '';
+
+      imageContainer.innerHTML = ''; // Clear container
+
       querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const imageDiv = document.createElement('div');
+        imageDiv.className = 'image-post';
+
         const img = document.createElement('img');
-        img.src = doc.data().url;
-        imageContainer.appendChild(img);
+        img.src = data.url;
+        img.alt = 'Uploaded Image';
+
+        const likeButton = document.createElement('button');
+        likeButton.innerText = 'Like';
+        likeButton.onclick = () => alert('Liked!'); // Placeholder for like functionality
+
+        const commentInput = document.createElement('input');
+        commentInput.type = 'text';
+        commentInput.placeholder = 'Add a comment...';
+
+        const commentButton = document.createElement('button');
+        commentButton.innerText = 'Comment';
+        commentButton.onclick = () => alert(`Comment: ${commentInput.value}`); // Placeholder for comments
+
+        imageDiv.appendChild(img);
+        imageDiv.appendChild(likeButton);
+        imageDiv.appendChild(commentInput);
+        imageDiv.appendChild(commentButton);
+
+        imageContainer.appendChild(imageDiv);
       });
     }
 
+    // Load images on page load
     displayImages();
   </script>
 </body>
