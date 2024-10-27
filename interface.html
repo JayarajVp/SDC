@@ -95,6 +95,12 @@
       border-radius: 5px;
       cursor: pointer;
     }
+
+    .no-images {
+      font-size: 18px;
+      color: #666;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -149,12 +155,14 @@
     async function loadImages() {
       onValue(dbRef(db, 'posts'), (snapshot) => {
         feed.innerHTML = ''; // Clear existing posts
+        let hasImages = false; // Flag to track if there are images
 
         snapshot.forEach((postSnapshot) => {
           const post = postSnapshot.val();
           
           // Check if imageUrl is valid and not blank
           if (post.imageUrl && post.imageUrl.trim() !== '') {
+            hasImages = true; // Set flag to true when an image is found
             const postElement = document.createElement('div');
             postElement.classList.add('post');
             postElement.innerHTML = `
@@ -212,6 +220,11 @@
             feed.appendChild(postElement);
           }
         });
+
+        // Show message if no images found
+        if (!hasImages) {
+          feed.innerHTML = '<div class="no-images">No images found. Please upload some!</div>';
+        }
       });
     }
 
