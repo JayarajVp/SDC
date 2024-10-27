@@ -153,8 +153,8 @@
         snapshot.forEach((postSnapshot) => {
           const post = postSnapshot.val();
           
-          // Check if imageUrl is valid
-          if (post.imageUrl) {
+          // Check if imageUrl is valid and not blank
+          if (post.imageUrl && post.imageUrl.trim() !== '') {
             const postElement = document.createElement('div');
             postElement.classList.add('post');
             postElement.innerHTML = `
