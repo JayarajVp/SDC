@@ -3,43 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register</title>
+  <title>Registration</title>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="firebase.js"></script>
+  <style>
+    /* Add your styles here */
+  </style>
 </head>
 <body>
-  <div class="register-container">
-    <h2>Create Account</h2>
-    <input type="email" id="reg-email" placeholder="Email" />
-    <input type="password" id="reg-password" placeholder="Password" />
-    <input type="password" id="confirm-password" placeholder="Confirm Password" />
-    <button id="register-btn">Sign Up</button>
-    <p>Already have an account? <a href="login.html">Login here</a></p>
-  </div>
+
+  <h2>Create Account</h2>
+  <input type="text" id="username" placeholder="Username" required />
+  <input type="email" id="email" placeholder="Email" required />
+  <input type="password" id="password" placeholder="Password" required />
+  <button id="register-btn">Register</button>
 
   <script type="module">
     import { auth } from './firebase.js';
     import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { set, ref } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { db } from './firebase.js';
 
-    document.getElementById('register-btn').addEventListener('click', () => {
-      const email = document.getElementById('reg-email').value;
-      const password = document.getElementById('reg-password').value;
-      const confirmPassword = document.getElementById('confirm-password').value;
+    document.getElementById('register-btn').addEventListener('click', async () => {
+      const username = document.getElementById('username').value;
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
 
-      if (password !== confirmPassword) {
-        alert('Passwords do not match!');
-        return;
-      }
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userId = userCredential.user.uid;
 
-      createUserWithEmailAndPassword(auth, email, password)
-        .then(() => {
-          alert('Account created successfully! Redirecting to login...');
-          window.location = 'login.html';  // Redirect to login page
-        })
-        .catch((error) => {
-          alert(error.message);  // Handle registration errors
+        // Save user info to database
+        await set(ref(db, 'users/' + userId), {
+          username: username,
+          email: email
         });
+
+        alert('Registration successful!');
+        // Redirect to login or interface page
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
     });
   </script>
+
 </body>
 </html>
